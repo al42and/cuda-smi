@@ -24,10 +24,28 @@
  * */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <cuda_runtime_api.h>
 #include "nvml.h"
 
-int main(){
+#define CUDA_CALL(function, ...)  { \
+    cudaError_t status = function(__VA_ARGS__); \
+    anyCheck(status == cudaSuccess, cudaGetErrorString(status), #function, __FILE__, __LINE__); \
+}
+
+#define NVML_CALL(function, ...)  { \
+    nvmlReturn_t status = function(__VA_ARGS__); \
+    anyCheck(status == NVML_SUCCESS, nvmlErrorString(status), #function, __FILE__, __LINE__); \
+}
+
+void anyCheck(bool is_ok, const char *description, const char *function, const char *file, int line) {
+    if (!is_ok) {
+        fprintf(stderr,"Error: %s in %s at %s:%d\n", description, function, file, line);
+        exit(EXIT_FAILURE);
+    }
+}
+
+int main() {
     int cudaDeviceCount;
     unsigned int nvmlDeviceCount = 0;
     struct cudaDeviceProp deviceProp;
@@ -35,35 +53,39 @@ int main(){
     nvmlMemory_t nvmlMemory;
     nvmlDevice_t nvmlDevice;
     size_t memUsed, memTotal;
-    cudaGetDeviceCount(&cudaDeviceCount);
-    nvmlInit();
-    nvmlDeviceGetCount(&nvmlDeviceCount);
+
+    CUDA_CALL(cudaGetDeviceCount, &cudaDeviceCount);
+    NVML_CALL(nvmlInit);
+    NVML_CALL(nvmlDeviceGetCount, &nvmlDeviceCount);
+
     for (int deviceId = 0; deviceId < cudaDeviceCount; ++deviceId) {
-    	cudaGetDeviceProperties(&deviceProp, deviceId);
+        CUDA_CALL(cudaGetDeviceProperties, &deviceProp, deviceId);
         int nvmlDeviceId = -1;
         for (int nvmlId = 0; nvmlId < nvmlDeviceCount; ++nvmlId) {
-            nvmlDeviceGetHandleByIndex(nvmlId, &nvmlDevice);
-            nvmlDeviceGetPciInfo(nvmlDevice, &nvmlPciInfo);
-            if (deviceProp.pciDomainID == nvmlPciInfo.domain && 
+            NVML_CALL(nvmlDeviceGetHandleByIndex, nvmlId, &nvmlDevice);
+            NVML_CALL(nvmlDeviceGetPciInfo, nvmlDevice, &nvmlPciInfo);
+            if (deviceProp.pciDomainID == nvmlPciInfo.domain &&
                 deviceProp.pciBusID    == nvmlPciInfo.bus    &&
                 deviceProp.pciDeviceID == nvmlPciInfo.device) {
+
                 nvmlDeviceId = nvmlId;
                 break;
             }
         }
-    	printf("Device %2d [nvidia-smi %2d]: %20s (CC %d.%d)", deviceId, nvmlDeviceId, deviceProp.name, deviceProp.major, deviceProp.minor);
+        printf("Device %2d [nvidia-smi %2d]", deviceId, nvmlDeviceId);
+        printf(" [PCIe %04x:%02x:%02x.0]", deviceProp.pciDomainID, deviceProp.pciBusID, deviceProp.pciDeviceID);
+        printf(": %20s (CC %d.%d)", deviceProp.name, deviceProp.major, deviceProp.minor);
         if (nvmlDeviceId != -1) {
-            nvmlDeviceGetMemoryInfo(nvmlDevice, &nvmlMemory);
+            NVML_CALL(nvmlDeviceGetMemoryInfo, nvmlDevice, &nvmlMemory);
             memUsed = nvmlMemory.used / 1024 / 1024;
             memTotal = nvmlMemory.total / 1024 / 1024;
-        	printf(": %5zu of %5zu MiB Used", memUsed, memTotal);
         } else {
-            printf(": ??? MiB Used");
+            memUsed = memTotal = 0;
         }
-    	printf(" [PCIe ID: %04x:%02x:%02x.0]", deviceProp.pciDomainID, deviceProp.pciBusID, deviceProp.pciDeviceID);
+        printf(": %5zu of %5zu MiB Used", memUsed, memTotal);
         printf("\n");
     }
-    nvmlShutdown();
+    NVML_CALL(nvmlShutdown);
     return 0;
 }
 
