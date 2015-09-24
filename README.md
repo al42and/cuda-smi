@@ -9,6 +9,13 @@ This utility was made to solve this problem.
 
 Code is distributed under MIT license, except `nvml.h` header which is property of NVIDIA Corporation.
 
+CUDA 7.0
+--------
+
+With the release of CUDA 7.0, it became possible to use `nvidia-smi` device order in CUDA applications by setting environment variable `CUDA_DEVICE_ORDER=PCI_BUS_ID`. This makes this tool slightly less useful.
+
+[More information available in official docs](http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars).
+
 Building
 --------
 
