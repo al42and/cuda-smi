@@ -1,5 +1,5 @@
 OS=$(shell uname)
-CUDA_HOME=/usr/local/cuda/
+CUDA_HOME=/usr/local/cuda
 
 CXXFLAGS+=-I$(CUDA_HOME)/include
 LFLAGS=-lcudart_static -lpthread -ldl
