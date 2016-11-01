@@ -26,7 +26,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime_api.h>
+#ifndef __APPLE__
+// nvml is not supported on macOS
 #include "nvml.h"
+#endif // def __APPLE__
 
 #define CUDA_CALL(function, ...)  { \
     cudaError_t status = function(__VA_ARGS__); \
@@ -47,19 +50,26 @@ void anyCheck(bool is_ok, const char *description, const char *function, const c
 
 int main() {
     int cudaDeviceCount;
-    unsigned int nvmlDeviceCount = 0;
     struct cudaDeviceProp deviceProp;
+    size_t memUsed, memTotal;
+#ifndef __APPLE__
+    unsigned int nvmlDeviceCount = 0;
     nvmlPciInfo_t nvmlPciInfo;
     nvmlMemory_t nvmlMemory;
     nvmlDevice_t nvmlDevice;
-    size_t memUsed, memTotal;
+#endif // ndef __APPLE__
 
     CUDA_CALL(cudaGetDeviceCount, &cudaDeviceCount);
+#ifndef __APPLE__
     NVML_CALL(nvmlInit);
     NVML_CALL(nvmlDeviceGetCount, &nvmlDeviceCount);
+#endif // ndef __APPLE__
 
     for (int deviceId = 0; deviceId < cudaDeviceCount; ++deviceId) {
         CUDA_CALL(cudaGetDeviceProperties, &deviceProp, deviceId);
+#ifdef __APPLE__
+        printf("Device %2d", deviceId);
+#else // def __APPLE__
         int nvmlDeviceId = -1;
         for (int nvmlId = 0; nvmlId < nvmlDeviceCount; ++nvmlId) {
             NVML_CALL(nvmlDeviceGetHandleByIndex, nvmlId, &nvmlDevice);
@@ -73,8 +83,16 @@ int main() {
             }
         }
         printf("Device %2d [nvidia-smi %2d]", deviceId, nvmlDeviceId);
+#endif // def __APPLE__
         printf(" [PCIe %04x:%02x:%02x.0]", deviceProp.pciDomainID, deviceProp.pciBusID, deviceProp.pciDeviceID);
         printf(": %20s (CC %d.%d)", deviceProp.name, deviceProp.major, deviceProp.minor);
+#ifdef __APPLE__
+        size_t memFree;
+        CUDA_CALL(cudaMemGetInfo, &memFree, &memTotal);
+        memUsed = memTotal - memFree;
+        memUsed = memUsed / 1024 / 1024;
+        memTotal = memTotal / 1024 / 1024;
+#else
         if (nvmlDeviceId != -1) {
             NVML_CALL(nvmlDeviceGetMemoryInfo, nvmlDevice, &nvmlMemory);
             memUsed = nvmlMemory.used / 1024 / 1024;
@@ -82,10 +100,13 @@ int main() {
         } else {
             memUsed = memTotal = 0;
         }
+#endif // def __APPLE__
         printf(": %5zu of %5zu MiB Used", memUsed, memTotal);
         printf("\n");
     }
+#ifndef __APPLE__
     NVML_CALL(nvmlShutdown);
+#endif // ndef __APPLE__
     return 0;
 }
 
