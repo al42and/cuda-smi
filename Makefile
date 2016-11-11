@@ -1,6 +1,10 @@
 OS=$(shell uname)
 CUDA_HOME=/usr/local/cuda
-NO_NVML=0
+ifeq ($(OS), Darwin)
+	NO_NVML=1
+else
+	NO_NVML=0
+endif
 
 CXXFLAGS+=-I$(CUDA_HOME)/include
 LFLAGS=-lcudart_static -lpthread -ldl
