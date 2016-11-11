@@ -26,10 +26,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda_runtime_api.h>
-#ifndef __APPLE__
-// nvml is not supported on macOS
+#ifndef NO_NVML
 #include "nvml.h"
-#endif // def __APPLE__
+#endif // def NO_NVML
 
 #define CUDA_CALL(function, ...)  { \
     cudaError_t status = function(__VA_ARGS__); \
@@ -52,24 +51,24 @@ int main() {
     int cudaDeviceCount;
     struct cudaDeviceProp deviceProp;
     size_t memUsed, memTotal;
-#ifndef __APPLE__
+#ifndef NO_NVML
     unsigned int nvmlDeviceCount = 0;
     nvmlPciInfo_t nvmlPciInfo;
     nvmlMemory_t nvmlMemory;
     nvmlDevice_t nvmlDevice;
-#endif // ndef __APPLE__
+#endif // ndef NO_NVML
 
     CUDA_CALL(cudaGetDeviceCount, &cudaDeviceCount);
-#ifndef __APPLE__
+#ifndef NO_NVML
     NVML_CALL(nvmlInit);
     NVML_CALL(nvmlDeviceGetCount, &nvmlDeviceCount);
-#endif // ndef __APPLE__
+#endif // ndef NO_NVML
 
     for (int deviceId = 0; deviceId < cudaDeviceCount; ++deviceId) {
         CUDA_CALL(cudaGetDeviceProperties, &deviceProp, deviceId);
-#ifdef __APPLE__
+#ifdef NO_NVML
         printf("Device %2d", deviceId);
-#else // def __APPLE__
+#else // def NO_NVML
         int nvmlDeviceId = -1;
         for (int nvmlId = 0; nvmlId < nvmlDeviceCount; ++nvmlId) {
             NVML_CALL(nvmlDeviceGetHandleByIndex, nvmlId, &nvmlDevice);
@@ -83,10 +82,10 @@ int main() {
             }
         }
         printf("Device %2d [nvidia-smi %2d]", deviceId, nvmlDeviceId);
-#endif // def __APPLE__
+#endif // def NO_NVML
         printf(" [PCIe %04x:%02x:%02x.0]", deviceProp.pciDomainID, deviceProp.pciBusID, deviceProp.pciDeviceID);
         printf(": %20s (CC %d.%d)", deviceProp.name, deviceProp.major, deviceProp.minor);
-#ifdef __APPLE__
+#ifdef NO_NVML
         size_t memFree;
         CUDA_CALL(cudaMemGetInfo, &memFree, &memTotal);
         memUsed = memTotal - memFree;
@@ -100,13 +99,13 @@ int main() {
         } else {
             memUsed = memTotal = 0;
         }
-#endif // def __APPLE__
+#endif // def NO_NVML
         printf(": %5zu of %5zu MiB Used", memUsed, memTotal);
         printf("\n");
     }
-#ifndef __APPLE__
+#ifndef NO_NVML
     NVML_CALL(nvmlShutdown);
-#endif // ndef __APPLE__
+#endif // ndef NO_NVML
     return 0;
 }
 
