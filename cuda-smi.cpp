@@ -86,6 +86,7 @@ int main() {
         printf(" [PCIe %04x:%02x:%02x.0]", deviceProp.pciDomainID, deviceProp.pciBusID, deviceProp.pciDeviceID);
         printf(": %20s (CC %d.%d)", deviceProp.name, deviceProp.major, deviceProp.minor);
 #ifdef NO_NVML
+        CUDA_CALL(cudaSetDevice, deviceId);
         size_t memFree;
         CUDA_CALL(cudaMemGetInfo, &memFree, &memTotal);
         memUsed = memTotal - memFree;
