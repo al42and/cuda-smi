@@ -6,7 +6,7 @@ ifeq ($(OS), Darwin)
 endif
 
 CXXFLAGS+=-I$(CUDA_HOME)/include
-LDFLAGS+=-lcudart_static -lpthread -ldl -lrt
+LDFLAGS+=-lcudart_static -lpthread -ldl
 
 ifeq ($(OS), Darwin)
 	CXXFLAGS+=-L$(CUDA_HOME)/lib/
@@ -20,6 +20,10 @@ ifneq ($(NO_NVML), 1)
 	LDFLAGS+=-lnvidia-ml
 else
 	CXXFLAGS+=-DNO_NVML=1
+endif
+
+ifeq ($(OS), Linux)
+	LDFLAGS+=-lrt
 endif
 
 cuda-smi: cuda-smi.cpp nvml.h
