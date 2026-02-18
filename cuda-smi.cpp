@@ -64,9 +64,17 @@ void getMemoryUsageCUDA(int deviceId, size_t &memUsed, size_t &memTotal) {
 #ifndef NO_NVML
 void getMemoryUsageNVML(nvmlDevice_t &nvmlDevice, size_t &memUsed, size_t &memTotal) {
     nvmlMemory_t nvmlMemory;
-    NVML_CALL(nvmlDeviceGetMemoryInfo, nvmlDevice, &nvmlMemory);
-    memUsed = nvmlMemory.used / 1024 / 1024;
-    memTotal = nvmlMemory.total / 1024 / 1024;
+    nvmlReturn_t status = nvmlDeviceGetMemoryInfo(nvmlDevice, &nvmlMemory);
+    if (status == NVML_SUCCESS) {
+        memUsed = nvmlMemory.used / 1024 / 1024;
+        memTotal = nvmlMemory.total / 1024 / 1024;
+    } else if (status == NVML_ERROR_NOT_SUPPORTED) {
+        memUsed = 0;
+        memTotal = 0;
+    } else {
+        fprintf(stderr,"Error: nvmlDeviceGetMemoryInfo in getMemoryUsageNVML\n");
+        exit(EXIT_FAILURE);
+    }
 }
 #endif
 
@@ -108,6 +116,9 @@ int main() {
 
 #ifndef NO_NVML
         getMemoryUsageNVML(nvmlDevice, memUsed, memTotal);
+        if (memUsed == 0 && memTotal == 0) {
+            getMemoryUsageCUDA(deviceId, memUsed, memTotal);
+        }
 #else //  ndef NO_NVML
         getMemoryUsageCUDA(deviceId, memUsed, memTotal);
 #endif // ndef NO_NVML
